@@ -97,18 +97,30 @@ function astToWasm(node) {
         return astToWasm(node.content);
     }
 
-    // CASE 2: Symbols (Variables & Constants like e, pi)
+    // CASE 2: Symbols (Variables, Constants, AND Existing Functions f1, f2...)
     if (node.isSymbolNode) {
-        if (node.name === 'x') {
-            return MathFunction.x(); 
+        const name = node.name;
+
+        // 2a. Variable x
+        if (name === 'x') return MathFunction.x();
+        
+        // 2b. Constants
+        if (name === 'e') return MathFunction.number(Math.E);
+        if (name === 'pi' || name === 'π') return MathFunction.number(Math.PI);
+
+        // 2c. Existing Functions (f1, f2, f3...) used as variables (e.g., "f1 + f2")
+        // This implies f1(x) + f2(x)
+        if (name.match(/^f\d+$/)) {
+            const index = parseInt(name.substring(1)) - 1;
+            const funcData = activeFunctions[index];
+            
+            if (!funcData) throw new Error(`Function ${name} does not exist.`);
+            
+            // Return a COPY so we don't destroy the original
+            return funcData.object.copy();
         }
-        if (node.name === 'e') {
-            return MathFunction.number(Math.E);
-        }
-        if (node.name === 'pi' || node.name === 'π') {
-            return MathFunction.number(Math.PI);
-        }
-        throw new Error(`Unknown variable: ${node.name}`);
+
+        throw new Error(`Unknown variable: ${name}`);
     }
 
     // CASE 3: Constants (Numbers)
@@ -118,12 +130,10 @@ function astToWasm(node) {
 
     // CASE 4: Operators (+, -, *, /, ^)
     if (node.isOperatorNode) {
-        // Handle unary minus (-x)
+        // Unary minus (-x)
         if (node.args.length === 1) {
             const arg = astToWasm(node.args[0]);
-            if (node.op === '-') {
-                return MathFunction.number(0).sub(arg);
-            }
+            if (node.op === '-') return MathFunction.number(0).sub(arg);
             if (node.op === '+') return arg;
         }
 
@@ -140,19 +150,38 @@ function astToWasm(node) {
         }
     }
 
-    // CASE 5: Functions
+    // CASE 5: Function Calls (sin, cos, der, f1...)
     if (node.isFunctionNode) {
         const arg = astToWasm(node.args[0]); 
-        switch (node.name) {
+        const name = node.name;
+
+        // 5a. Derivative Command: der(...)
+        if (name === 'der' || name === 'derivative') {
+            return arg.derivative();
+        }
+
+        // 5b. Composition: f1(...), f2(...)
+        // Example: f1(x^2) -> take f1, compose with x^2
+        if (name.match(/^f\d+$/)) {
+            const index = parseInt(name.substring(1)) - 1;
+            const funcData = activeFunctions[index];
+            
+            if (!funcData) throw new Error(`Function ${name} does not exist.`);
+            
+            // Use your wrapper's compose method
+            return funcData.object.compose(arg);
+        }
+
+        // 5c. Standard Math Functions
+        switch (name) {
             case 'sin': return arg.sin();
             case 'cos': return arg.cos();
             case 'tan': return arg.tan();
             case 'ln':  return arg.ln();
-            case 'log': return arg.ln(); // Default to ln
-            case 'sqrt': return arg.power(MathFunction.number(0.5));
-            // Handle exp(x) explicitly if user types "exp(x)" instead of "e^x"
+            case 'log': return arg.ln();
             case 'exp': return MathFunction.number(Math.E).power(arg);
-            default: throw new Error("Unsupported function: " + node.name);
+            case 'sqrt': return arg.power(MathFunction.number(0.5));
+            default: throw new Error("Unsupported function: " + name);
         }
     }
 

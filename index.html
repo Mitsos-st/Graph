@@ -17,10 +17,10 @@
 
     <div class="main-content">
         <canvas id="plot" width="800" height="600"></canvas>
-
+        
         <div class="input-area">
             <span class="input-label">f(x) = </span>
-            <input type="text" id="math-input" placeholder="Try: e^x, sin(x), or π">
+            <input type="text" id="math-input" placeholder="e.g. x^2, der(f1), f1(x+1)">
             <button id="btn-add">Plot</button>
             <button id="btn-clear" class="btn-secondary">Clear</button>
         </div>
@@ -31,11 +31,15 @@
             <button onclick="addToInput('tan(')">tan</button>
             <button onclick="addToInput('ln(')">ln</button>
             <button onclick="addToInput('^')">^</button>
-            <button onclick="addToInput('^2')">^2</button>
+
+            <button onclick="addToInput('der(')" style="font-weight:bold; color:#d9534f;">der</button>
+
             <button onclick="addToInput('e')">e</button>
             <button onclick="addToInput('π')">π</button>
             <button onclick="addToInput('(')">(</button>
             <button onclick="addToInput(')')">)</button>
+
+            <button onclick="addToInput('f1')">f1</button>
         </div>
     </div>
 </div>
