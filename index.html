@@ -16,7 +16,16 @@
     </div>
 
     <div class="main-content">
+        <div class="canvas-wrapper" style="position: relative; display: inline-block;">
+        
+        <div id="zoom-controls" class="zoom-overlay">
+            <button id="btn-zoom-in" title="Zoom In">+</button>
+            <button id="btn-zoom-out" title="Zoom Out">-</button>
+            <button id="btn-reset-view" title="Reset View">⟲</button>
+        </div>
+
         <canvas id="plot" width="800" height="600"></canvas>
+        </div>
         
         <div class="input-area">
             <span class="input-label">f(x) = </span>
@@ -40,6 +49,7 @@
             <button onclick="addToInput(')')">)</button>
 
             <button onclick="addToInput('f1')">f1</button>
+
         </div>
     </div>
 </div>

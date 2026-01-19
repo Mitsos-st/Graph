@@ -127,3 +127,100 @@ button:hover { background: #0056b3; }
     color: #333;
 }
 .helper-buttons button:hover { background: #d3d9df; }
+
+.zoom-overlay {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    display: flex;
+    flex-direction: column; /* Stacked vertically */
+    gap: 5px;
+    z-index: 10;
+}
+
+.zoom-overlay button {
+    width: 35px;
+    height: 35px;
+    
+    /* Force text visibility */
+    color: #333 !important;           /* Dark gray/black text */
+    background-color: rgba(255, 255, 255, 0.9) !important;
+    font-family: Arial, sans-serif !important;
+    line-height: 1 !important;        /* Prevents text from shifting up/down */
+    text-indent: 0 !important;        /* Fixes cases where text is pushed off-screen */
+    
+    border: 1px solid #bbb;
+    cursor: pointer;
+    font-size: 20px;
+    font-weight: bold;
+    border-radius: 4px;
+    
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;                       /* Ensure no padding is pushing symbols */
+    margin: 0;
+    z-index: 11;
+    transition: all 0.2s;
+}
+
+.zoom-overlay button:hover {
+    background-color: #ffffff !important;
+    border-color: #888;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+#btn-reset-view {
+    font-size: 20px;
+}
+
+/* Container for the whole app */
+.app-container {
+    display: flex;
+    flex-direction: row; /* Desktop default */
+    height: 100vh;
+}
+
+/* Make canvas responsive */
+.canvas-wrapper {
+    flex-grow: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+}
+
+/* Mobile Media Query */
+@media (max-width: 768px) {
+    .app-container {
+        flex-direction: column; /* Stack vertically on mobile */
+    }
+
+    .main-content {
+        order: 1; /* Canvas on top */
+        height: 50vh;
+    }
+
+    .sidebar {
+        order: 2; /* Functions list on bottom */
+        width: 100% !important;
+        height: 50vh;
+        border-left: none;
+        border-top: 2px solid #ddd;
+    }
+
+    /* Make buttons and inputs larger for fingers */
+    input, button {
+        padding: 12px;
+        font-size: 16px; /* Prevents iOS from auto-zooming on focus */
+    }
+
+    .helper-buttons button {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}

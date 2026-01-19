@@ -2,7 +2,8 @@ import {
     drawGrid,
     drawAxes,
     drawFunction,
-    drawNumbers
+    drawNumbers,
+    drawPoint
 } from "./draw.js";
 
 // --- Global State ---
@@ -32,9 +33,12 @@ function render() {
     drawAxes(ctx, originX, originY, canvas.width, canvas.height);
     drawNumbers(ctx, originX, originY, scale, canvas.width, canvas.height);
 
-    activeFunctions.forEach(funcData => {
-        if (funcData.object) {
-            drawFunction(ctx, funcData.object, originX, originY, scale, funcData.color);
+    activeFunctions.forEach(item => {
+        if (item.type === 'function') {
+            drawFunction(ctx, item.object, originX, originY, scale, item.color);
+        } else if (item.type === 'point') {
+            // Use your drawPoint function here
+            drawPoint(ctx, item.object, item.xVal, originX, originY, scale, item.color);
         }
     });
 }
@@ -43,6 +47,23 @@ function setupEventListeners() {
     const btnAdd = document.getElementById('btn-add');
     const btnClear = document.getElementById('btn-clear');
     const input = document.getElementById('math-input');
+    
+    document.getElementById('btn-zoom-in').onclick = () => {
+    scale *= 1.2;
+    render();
+    };
+
+    document.getElementById('btn-zoom-out').onclick = () => {
+        scale /= 1.2;
+        render();
+    };
+
+    document.getElementById('btn-reset-view').onclick = () => {
+        scale = 50;
+        originX = canvas.width / 2;
+        originY = canvas.height / 2;
+        render();
+    };
 
     const handleAdd = () => {
         const text = input.value.trim();
@@ -66,23 +87,174 @@ function setupEventListeners() {
         updateSidebar();
         render();
     });
+
+    canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+
+        const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+
+        // 1. Get mouse position relative to the canvas
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        // 2. Calculate mouse position in "math units" before zoom
+        const mathX = (mouseX - originX) / scale;
+        const mathY = (originY - mouseY) / scale;
+
+        // 3. Apply the zoom to the scale
+        scale *= zoomFactor;
+
+        // 4. Adjust the origin so the math point stays under the mouse
+        // New origin = MousePos - (MathPos * NewScale)
+        originX = mouseX - (mathX * scale);
+        originY = mouseY + (mathY * scale);
+
+        render();
+    }, { passive: false });
+
+    let isDragging = false;
+    let lastMouseX, lastMouseY;
+
+    canvas.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (isDragging) {
+            const dx = e.clientX - lastMouseX;
+            const dy = e.clientY - lastMouseY;
+
+            originX += dx;
+            originY += dy;
+
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+            render();
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
+
+    let lastTouchDist = null;
+
+    canvas.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+            // Prepare for single-finger panning
+            lastMouseX = e.touches[0].clientX;
+            lastMouseY = e.touches[0].clientY;
+        } else if (e.touches.length === 2) {
+            // Prepare for two-finger pinch-to-zoom
+            lastTouchDist = getDist(e.touches);
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault(); // Stop the page from scrolling while drawing
+
+        if (e.touches.length === 1) {
+            // PANNING
+            const dx = e.touches[0].clientX - lastMouseX;
+            const dy = e.touches[0].clientY - lastMouseY;
+            originX += dx;
+            originY += dy;
+            lastMouseX = e.touches[0].clientX;
+            lastMouseY = e.touches[0].clientY;
+        } 
+        else if (e.touches.length === 2) {
+            // PINCH ZOOMING
+            const currentDist = getDist(e.touches);
+            if (lastTouchDist) {
+                const zoomRatio = currentDist / lastTouchDist;
+                scale *= zoomRatio;
+            }
+            lastTouchDist = currentDist;
+        }
+        render();
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', () => {
+        lastTouchDist = null;
+});
+
+// Helper to calculate distance between two touch points
+function getDist(touches) {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+}
 }
 
 function addNewFunction(text) {
-    // 1. Parse string to AST using Math.js
-    const rootNode = math.parse(text);
-    
-    // 2. Convert AST to your WASM Object
-    const wasmFunc = astToWasm(rootNode);
+    try {
+        let item = null;
 
-    if (wasmFunc) {
-        activeFunctions.push({
-            text: text,
-            object: wasmFunc,
-            color: getRandomColor()
-        });
-        updateSidebar();
-        render();
+        // 1. REGEX CHECK: Does it look like a point "(1, 2)" or "(1, pi)"?
+        const pointRegex = /^\s*\(\s*([^,]+)\s*,\s*([^,]+)\s*\)\s*$/;
+        const match = text.match(pointRegex);
+
+        if (match) {
+            // It's a coordinate pair! 
+            // We evaluate the contents (in case the user typed 'pi' or '2*3')
+            const xVal = math.evaluate(match[1]);
+            const yVal = math.evaluate(match[2]);
+
+            item = {
+                type: 'point',
+                text: text,
+                object: MathFunction.number(yVal), // Use Y as the "function" for drawPoint
+                xVal: xVal,
+                color: getRandomColor()
+            };
+        } 
+        else {
+            // 2. STANDARD PARSING: If it's not a coordinate pair, use Math.js
+            const rootNode = math.parse(text);
+
+            // Check if it's an evaluation like "f1(2)"
+            if (rootNode.isFunctionNode && rootNode.name.match(/^f\d+$/)) {
+                const argText = rootNode.args[0].toString();
+                const isStaticPoint = !argText.includes('x');
+
+                if (isStaticPoint) {
+                    const index = parseInt(rootNode.name.substring(1)) - 1;
+                    const parentFunc = activeFunctions[index];
+                    if (!parentFunc) throw new Error(`Function ${rootNode.name} not found`);
+
+                    item = {
+                        type: 'point',
+                        text: text,
+                        object: parentFunc.object.copy(),
+                        xVal: math.evaluate(argText),
+                        color: parentFunc.color 
+                    };
+                }
+            }
+
+            // If it wasn't caught as a point above, treat as a normal function
+            if (!item) {
+                const wasmFunc = astToWasm(rootNode);
+                item = {
+                    type: 'function',
+                    text: text,
+                    object: wasmFunc,
+                    color: getRandomColor()
+                };
+            }
+        }
+
+        if (item) {
+            activeFunctions.push(item);
+            updateSidebar();
+            render();
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Input Error: " + e.message);
     }
 }
 
@@ -201,25 +373,29 @@ function updateSidebar() {
     const list = document.getElementById('function-list');
     list.innerHTML = ''; 
 
-    activeFunctions.forEach((funcData, index) => {
-        const item = document.createElement('div');
-        item.className = 'function-item';
-        item.style.borderLeftColor = funcData.color; 
+    activeFunctions.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'function-item';
+        div.style.borderLeftColor = item.color; 
 
-        // Text
         const label = document.createElement('span');
         label.className = 'function-text';
-        label.innerText = `f${index + 1}(x) = ${funcData.text}`;
         
-        // Delete Button
+        // Differentiate label text
+        if (item.type === 'point') {
+            label.innerHTML = `<b>P${index + 1}</b>: ${item.text}`;
+        } else {
+            label.innerHTML = `f<sub>${index + 1}</sub>(x) = ${item.text}`;
+        }
+        
         const delBtn = document.createElement('button');
         delBtn.className = 'btn-delete';
-        delBtn.innerText = '×'; // nicer multiplication sign as close icon
+        delBtn.innerText = '×';
         delBtn.onclick = () => removeFunction(index);
 
-        item.appendChild(label);
-        item.appendChild(delBtn);
-        list.appendChild(item);
+        div.appendChild(label);
+        div.appendChild(delBtn);
+        list.appendChild(div);
     });
 }
 
@@ -239,3 +415,18 @@ function removeFunction(index) {
 window.addEventListener("beforeunload", () => {
     activeFunctions.forEach(f => f.object.destroy());
 });
+
+window.addEventListener('resize', () => {
+    const wrapper = canvas.parentElement;
+    canvas.width = wrapper.clientWidth;
+    canvas.height = wrapper.clientHeight;
+    
+    // Optional: Keep the origin centered during resize
+    originX = canvas.width / 2;
+    originY = canvas.height / 2;
+    
+    render();
+});
+
+// Call once on startup to set initial size
+window.dispatchEvent(new Event('resize'));
