@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Math Plotter</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="sidebar">
+        <div class="sidebar-header">Functions</div>
+        <div id="function-list" class="function-list">
+            </div>
+    </div>
+
+    <div class="main-content">
+        <canvas id="plot" width="800" height="600"></canvas>
+
+        <div class="input-area">
+            <span class="input-label">f(x) = </span>
+            <input type="text" id="math-input" placeholder="Try: e^x, sin(x), or π">
+            <button id="btn-add">Plot</button>
+            <button id="btn-clear" class="btn-secondary">Clear</button>
+        </div>
+
+        <div class="helper-buttons">
+            <button onclick="addToInput('sin(')">sin</button>
+            <button onclick="addToInput('cos(')">cos</button>
+            <button onclick="addToInput('tan(')">tan</button>
+            <button onclick="addToInput('ln(')">ln</button>
+            <button onclick="addToInput('^')">^</button>
+            <button onclick="addToInput('^2')">^2</button>
+            <button onclick="addToInput('e')">e</button>
+            <button onclick="addToInput('π')">π</button>
+            <button onclick="addToInput('(')">(</button>
+            <button onclick="addToInput(')')">)</button>
+        </div>
+    </div>
+</div>
+
+<script src="math.js"></script>
+<script src="math-wrapper.js"></script>
+<script type="module" src="app.js"></script>
+
+<script>
+    function addToInput(val) {
+        const input = document.getElementById('math-input');
+        input.value += val;
+        input.focus();
+    }
+</script>
+
+</body>
+</html>
