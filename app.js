@@ -400,13 +400,19 @@ function updateSidebar() {
 }
 
 function removeFunction(index) {
-    // 1. Free C++ memory
-    activeFunctions[index].object.destroy();
-    
-    // 2. Remove from array
+    // 1. Get the item
+    const item = activeFunctions[index];
+
+    // 2. Explicitly free the Wasm memory
+    if (item && item.object && typeof item.object.delete === 'function') {
+        item.object.delete(); 
+        console.log(`Memory freed for function ${index + 1}`);
+    }
+
+    // 3. Remove from the JS array
     activeFunctions.splice(index, 1);
-    
-    // 3. Update UI
+
+    // 4. Refresh UI
     updateSidebar();
     render();
 }
